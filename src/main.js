@@ -31,8 +31,12 @@ bot.on(message('voice'), async (ctx) => {
       });
 
       const message = await openai.ask(ctx.session.messages);
-      ctx.session.messages.push(message);
-      await ctx.reply(message.content);
+      if (message) {
+         ctx.session.messages.push(message);
+         await ctx.reply(message.content);
+      } else {
+         await ctx.reply('GPT не смог дать ответ');
+      }
    } catch (e) {
       console.log(`Error while handle voice message: ${e}`);
    }
