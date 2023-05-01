@@ -38,7 +38,7 @@ bot.on(message('voice'), async (ctx) => {
          await ctx.reply('GPT не смог дать ответ');
       }
    } catch (e) {
-      console.log(`Error while handle voice message: ${e}`);
+      console.error(`Error while handle voice message: ${e}`);
    }
 });
 
@@ -56,7 +56,7 @@ bot.on(message('text'), async (ctx) => {
       ctx.session.messages.push(message);
       await ctx.reply(message.content);
    } catch (e) {
-      console.log(`Error while handle voice message: ${e}`);
+      console.error(`Error while handle text message: ${e}`);
    }
 });
 
