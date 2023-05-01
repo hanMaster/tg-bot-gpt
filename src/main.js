@@ -1,4 +1,4 @@
-import { session, Telegraf } from 'telegraf';
+import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { code } from 'telegraf/format';
 import config from 'config';
@@ -6,16 +6,22 @@ import config from 'config';
 import { ogg } from './voice-converter.js';
 import { openai } from './openai.js';
 
-const INITIAL_SESSION = {
-   messages: []
-};
+const sessions = new Map();
 
 const bot = new Telegraf(config.get('TELEGRAM_TOKEN'));
 
-bot.use(session());
+bot.command('start', async (ctx) => {
+   sessions.set(ctx.message.from.id, []);
+   await ctx.reply('Жду ваш вопрос голосом или текстом');
+});
+
+bot.command('new', async (ctx) => {
+   sessions.set(ctx.message.from.id, []);
+   await ctx.reply('Жду ваш вопрос голосом или текстом');
+});
 
 bot.on(message('voice'), async (ctx) => {
-   ctx.session ??= INITIAL_SESSION;
+   ctx.session = sessions.get(ctx.message.from.id);
    try {
       await ctx.reply(code('Сообщение принял, жду ответ от сервера...'));
       const link = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
@@ -25,14 +31,19 @@ bot.on(message('voice'), async (ctx) => {
       const question = await openai.transcription(mp3Path);
       await ctx.reply(code(`Ваш запрос: ${question}`));
 
-      ctx.session.messages.push({
+      let messages = sessions.get(ctx.message.from.id);
+      if (!messages) {
+         sessions.set(ctx.message.from.id, []);
+         messages = sessions.get(ctx.message.from.id);
+      }
+      messages.push({
          role: openai.roles.user,
          content: question
       });
 
-      const message = await openai.ask(ctx.session.messages);
-      if (message) {
-         ctx.session.messages.push(message);
+      const message = await openai.ask(messages);
+      if (message && message.content) {
+         messages.push(message);
          await ctx.reply(message.content);
       } else {
          await ctx.reply('GPT не смог дать ответ');
@@ -43,18 +54,21 @@ bot.on(message('voice'), async (ctx) => {
 });
 
 bot.on(message('text'), async (ctx) => {
-   ctx.session ??= INITIAL_SESSION;
    try {
       await ctx.reply(code('Сообщение принял, жду ответ от сервера...'));
-
-      ctx.session.messages.push({
+      let messages = sessions.get(ctx.message.from.id);
+      if (!messages) {
+         sessions.set(ctx.message.from.id, []);
+         messages = sessions.get(ctx.message.from.id);
+      }
+      messages.push({
          role: openai.roles.user,
          content: ctx.message.text
       });
 
-      const message = await openai.ask(ctx.session.messages);
+      const message = await openai.ask(messages);
       if (message && message.content) {
-         ctx.session.messages.push(message);
+         messages.push(message);
          await ctx.reply(message.content);
       } else {
          await ctx.reply('GPT не смог дать ответ');
@@ -62,16 +76,6 @@ bot.on(message('text'), async (ctx) => {
    } catch (e) {
       console.error(`Error while handle text message: ${e}`);
    }
-});
-
-bot.command('start', async (ctx) => {
-   ctx.session = INITIAL_SESSION;
-   await ctx.reply('Жду ваш вопрос голосом или текстом');
-});
-
-bot.command('new', async (ctx) => {
-   ctx.session = INITIAL_SESSION;
-   await ctx.reply('Жду ваш вопрос голосом или текстом');
 });
 
 bot.launch();
