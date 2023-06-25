@@ -16,8 +16,12 @@ bot.command('start', async (ctx) => {
 });
 
 bot.command('new', async (ctx) => {
-   sessions.set(ctx.message.from.id, []);
-   await ctx.reply('Жду ваш вопрос голосом или текстом');
+   if (sessions.has(ctx.message.from.id)) {
+      sessions.set(ctx.message.from.id, []);
+      await ctx.reply('Жду ваш вопрос голосом или текстом');
+      return;
+   }
+   await ctx.reply('Пожалуйста начните с команды `/start`');
 });
 
 bot.on(message('voice'), async (ctx) => {
