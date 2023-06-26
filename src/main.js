@@ -9,10 +9,10 @@ import { openai } from './openai.js';
 const sessions = new Map();
 
 const bot = new Telegraf(config.get('TELEGRAM_TOKEN'));
+const accessCode = config.get('ACCESS_CODE');
 
 bot.command('start', async (ctx) => {
-   sessions.set(ctx.message.from.id, []);
-   await ctx.reply('Жду ваш вопрос голосом или текстом');
+   await ctx.reply('Введите код доступа');
 });
 
 bot.command('new', async (ctx) => {
@@ -21,7 +21,7 @@ bot.command('new', async (ctx) => {
       await ctx.reply('Жду ваш вопрос голосом или текстом');
       return;
    }
-   await ctx.reply('Пожалуйста начните с команды `/start`');
+   await ctx.reply('Пожалуйста начните с команды /start');
 });
 
 bot.on(message('voice'), async (ctx) => {
@@ -58,27 +58,30 @@ bot.on(message('voice'), async (ctx) => {
 });
 
 bot.on(message('text'), async (ctx) => {
-   try {
-      await ctx.reply(code('Сообщение принял, жду ответ от сервера...'));
-      let messages = sessions.get(ctx.message.from.id);
-      if (!messages) {
-         sessions.set(ctx.message.from.id, []);
-         messages = sessions.get(ctx.message.from.id);
-      }
-      messages.push({
-         role: openai.roles.user,
-         content: ctx.message.text
-      });
+   if (sessions.has(ctx.message.from.id)) {
+      try {
+         await ctx.reply(code('Сообщение принял, жду ответ от сервера...'));
+         let messages = sessions.get(ctx.message.from.id);
+         messages.push({
+            role: openai.roles.user,
+            content: ctx.message.text
+         });
 
-      const message = await openai.ask(messages);
-      if (message && message.content) {
-         messages.push(message);
-         await ctx.reply(message.content);
-      } else {
-         await ctx.reply('GPT не смог дать ответ');
+         const message = await openai.ask(messages);
+         if (message && message.content) {
+            messages.push(message);
+            await ctx.reply(message.content);
+         } else {
+            await ctx.reply('GPT не смог дать ответ');
+         }
+      } catch (e) {
+         console.error(`Error while handle text message: ${e}`);
       }
-   } catch (e) {
-      console.error(`Error while handle text message: ${e}`);
+   } else if (ctx.message.text === accessCode) {
+      sessions.set(ctx.message.from.id, []);
+      await ctx.reply('Жду ваш вопрос голосом или текстом');
+   } else {
+      await ctx.reply('К сожалению Вы не имеете права общаться со мной... Попробуйте начать с команды /start');
    }
 });
 
