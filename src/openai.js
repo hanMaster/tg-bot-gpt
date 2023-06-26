@@ -18,10 +18,13 @@ class OpenAI {
    async ask(messages) {
       try {
          console.log(`[ask] started: ${JSON.stringify(messages, null, 2)}`);
-         const response = await this.oai.createChatCompletion({
-            model: 'gpt-3.5-turbo',
-            messages
-         });
+         const response = await this.promiseTimeout(
+            30000,
+            this.oai.createChatCompletion({
+               model: 'gpt-3.5-turbo',
+               messages
+            })
+         );
          console.log(`[ask] finished: ${JSON.stringify(response.data.choices[0].message, null, 2)}`);
          return response.data.choices[0].message;
       } catch (e) {
@@ -39,6 +42,23 @@ class OpenAI {
       } catch (e) {
          console.error('Failed to transcript question from mp3');
       }
+   }
+
+   promiseTimeout(ms, promise) {
+      // Create a promise that rejects in <ms> milliseconds
+      let id;
+      const timeout = new Promise((resolve, reject) => {
+         id = setTimeout(() => {
+            clearTimeout(id);
+            reject(`Timed out in ${ms}ms.`);
+         }, ms);
+      });
+      return Promise.race([promise, timeout]).then((result) => {
+         if (id) {
+            clearTimeout(id);
+         }
+         return result;
+      });
    }
 }
 

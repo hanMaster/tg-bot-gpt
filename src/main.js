@@ -50,10 +50,6 @@ bot.on(message('voice'), async (ctx) => {
          await ctx.reply(code(`Ваш запрос: ${question}`));
 
          let messages = sessions.get(ctx.message.from.id);
-         if (!messages) {
-            sessions.set(ctx.message.from.id, []);
-            messages = sessions.get(ctx.message.from.id);
-         }
          messages.push({
             role: openai.roles.user,
             content: question
